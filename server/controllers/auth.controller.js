@@ -75,7 +75,8 @@ exports.login = async (req, res) => {
 
     if (user.isTwoFactorEnabled) {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      user.twoFactorCode = code;
+      const hashedCode = await require('bcryptjs').hash(code, 10);
+      user.twoFactorCode = hashedCode;
       user.twoFactorCodeExpire = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
       await user.save();
       await emailService.send2FAEmail(user.email, user.name, code);
@@ -202,7 +203,8 @@ exports.googleLogin = async (req, res) => {
 
     if (user.isTwoFactorEnabled) {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      user.twoFactorCode = code;
+      const hashedCode = await require('bcryptjs').hash(code, 10);
+      user.twoFactorCode = hashedCode;
       user.twoFactorCodeExpire = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
       await user.save();
       await emailService.send2FAEmail(user.email, user.name, code);
@@ -271,7 +273,8 @@ exports.verify2FALogin = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
     }
 
-    if (!user.twoFactorCode || user.twoFactorCode !== token) {
+    const isMatch = await user.compare2FACode(token);
+    if (!user.twoFactorCode || !isMatch) {
       return res.status(400).json({ success: false, message: 'Mã 2FA không chính xác.' });
     }
 

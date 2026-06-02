@@ -2,20 +2,20 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true, 
-    trim: true 
+  name: {
+    type: String,
+    required: true,
+    trim: true
   },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true, 
-    lowercase: true 
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true
   },
-  password: { 
-    type: String, 
-    minlength: 6 
+  password: {
+    type: String,
+    minlength: 6
   },
   authProvider: {
     type: String,
@@ -32,18 +32,18 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  phone: { 
-    type: String, 
-    default: '' 
+  phone: {
+    type: String,
+    default: ''
   },
-  role: { 
-    type: String, 
-    enum: ['user', 'admin'], 
-    default: 'user' 
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
   },
-  isActive: { 
-    type: Boolean, 
-    default: true 
+  isActive: {
+    type: Boolean,
+    default: true
   },
 }, { timestamps: true });
 
@@ -56,6 +56,11 @@ userSchema.pre('save', async function () {
 // Hàm so sánh password khi đăng nhập
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Hàm so sánh mã 2FA
+userSchema.methods.compare2FACode = async function (candidateCode) {
+  return bcrypt.compare(candidateCode, this.twoFactorCode);
 };
 
 // Ẩn password khi trả về JSON
