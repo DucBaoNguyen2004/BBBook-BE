@@ -25,8 +25,22 @@ const twoFactorLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post('/register', register);
-router.post('/login', login);
+const { body } = require('express-validator');
+const validate = require('../middleware/validate.middleware');
+
+router.post('/register', [
+  body('email').isEmail().withMessage('Email không hợp lệ.'),
+  body('password').isLength({ min: 6 }).withMessage('Mật khẩu phải từ 6 ký tự trở lên.'),
+  body('name').notEmpty().withMessage('Tên là bắt buộc.'),
+  validate
+], register);
+
+router.post('/login', [
+  body('email').isEmail().withMessage('Email không hợp lệ.'),
+  body('password').notEmpty().withMessage('Mật khẩu là bắt buộc.'),
+  validate
+], login);
+
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.put('/change-password', protect, changePassword);
@@ -34,7 +48,12 @@ router.put('/change-password', protect, changePassword);
 router.post('/google-login', googleLogin);
 router.post('/2fa/enable', protect, enable2FA);
 router.post('/2fa/disable', protect, disable2FA);
-router.post('/2fa/verify-login', twoFactorLimiter, verify2FALogin);
+router.post('/2fa/verify-login', [
+  body('userId').isMongoId().withMessage('ID không hợp lệ.'),
+  body('token').isLength({ min: 6, max: 6 }).isNumeric().withMessage('Mã 2FA phải là 6 chữ số.'),
+  twoFactorLimiter,
+  validate
+], verify2FALogin);
 
 // Admin routes
 router.get('/', protect, adminOnly, require('../controllers/auth.controller').getAllUsers);
