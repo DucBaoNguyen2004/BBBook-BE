@@ -7,8 +7,8 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Hàm tạo JWT token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { 
-    expiresIn: process.env.JWT_EXPIRE || '7d' 
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d'
   });
 };
 
@@ -16,7 +16,7 @@ const generateToken = (id) => {
 exports.register = async (req, res) => {
   try {
     const { name, email, password, phone } = req.body || {};
-    
+
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc.' });
     }
@@ -24,25 +24,25 @@ exports.register = async (req, res) => {
     // Kiểm tra email đã tồn tại chưa
     const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email này đã được đăng ký.' 
+      return res.status(400).json({
+        success: false,
+        message: 'Email này đã được đăng ký.'
       });
     }
 
     const user = await User.create({ name, email, password, phone });
     const token = generateToken(user._id);
 
-    res.status(201).json({ 
-      success: true, 
-      message: 'Đăng ký thành công!', 
-      token, 
-      user 
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký thành công!',
+      token,
+      user
     });
   } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      message: err.message 
+    res.status(500).json({
+      success: false,
+      message: err.message
     });
   }
 };
@@ -59,17 +59,17 @@ exports.login = async (req, res) => {
     // Tìm user theo email
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Email hoặc mật khẩu không đúng.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Email hoặc mật khẩu không đúng.'
       });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Email hoặc mật khẩu không đúng.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Email hoặc mật khẩu không đúng.'
       });
     }
 
@@ -91,25 +91,25 @@ exports.login = async (req, res) => {
     const userToReturn = await User.findById(user._id);
     const token = generateToken(user._id);
 
-    res.json({ 
-      success: true, 
-      message: 'Đăng nhập thành công!', 
-      token, 
-      user: userToReturn 
+    res.json({
+      success: true,
+      message: 'Đăng nhập thành công!',
+      token,
+      user: userToReturn
     });
   } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      message: err.message 
+    res.status(500).json({
+      success: false,
+      message: err.message
     });
   }
 };
 
 // Lấy thông tin user đang đăng nhập
 exports.getMe = async (req, res) => {
-  res.json({ 
-    success: true, 
-    user: req.user 
+  res.json({
+    success: true,
+    user: req.user
   });
 };
 
@@ -118,19 +118,19 @@ exports.updateProfile = async (req, res) => {
   try {
     const { name, phone } = req.body || {};
     const user = await User.findByIdAndUpdate(
-      req.user._id, 
-      { name, phone }, 
+      req.user._id,
+      { name, phone },
       { new: true }
     );
-    res.json({ 
-      success: true, 
-      message: 'Cập nhật thành công!', 
-      user 
+    res.json({
+      success: true,
+      message: 'Cập nhật thành công!',
+      user
     });
   } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      message: err.message 
+    res.status(500).json({
+      success: false,
+      message: err.message
     });
   }
 };
@@ -139,7 +139,7 @@ exports.updateProfile = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body || {};
-    
+
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đủ thông tin.' });
     }
@@ -147,23 +147,23 @@ exports.changePassword = async (req, res) => {
 
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Mật khẩu hiện tại không đúng.' 
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu hiện tại không đúng.'
       });
     }
 
     user.password = newPassword;
     await user.save();
 
-    res.json({ 
-      success: true, 
-      message: 'Đổi mật khẩu thành công!' 
+    res.json({
+      success: true,
+      message: 'Đổi mật khẩu thành công!'
     });
   } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      message: err.message 
+    res.status(500).json({
+      success: false,
+      message: err.message
     });
   }
 };
@@ -180,7 +180,7 @@ exports.googleLogin = async (req, res) => {
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-    
+
     const payload = ticket.getPayload();
     const { email, name, picture } = payload;
 
@@ -194,7 +194,10 @@ exports.googleLogin = async (req, res) => {
         // mật khẩu không bắt buộc đối với google auth
       });
     } else if (user.authProvider !== 'google') {
-      // Nếu user đã tồn tại nhưng đăng ký bằng tài khoản thường, cập nhật authProvider hoặc chỉ cho phép đăng nhập
+      return res.status(400).json({
+        success: false,
+        message: 'Email này đã được đăng ký bằng mật khẩu hoặc phương thức khác. Vui lòng đăng nhập theo cách thông thường.'
+      });
     }
 
     if (user.isTwoFactorEnabled) {
@@ -339,4 +342,4 @@ exports.updateUserStatus = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-};
+};
