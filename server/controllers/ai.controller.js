@@ -9,10 +9,10 @@ const client = new OpenAI({
 
 // Danh sach model theo thu tu uu tien, tu dong fallback khi het quota
 const MODELS = [
-  'mistralai/mistral-7b-instruct:free',
-  'microsoft/phi-3-mini-128k-instruct:free',
-  'google/gemma-2-9b-it:free',
-  'meta-llama/llama-3.2-3b-instruct:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+'meta-llama/llama-3.2-3b-instruct:free',
+'qwen/qwen3-coder:free',
+'google/gemma-4-31b-it:free',
 ];
 
 // Ham goi AI voi tu dong fallback
