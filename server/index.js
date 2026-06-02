@@ -7,9 +7,8 @@ const dotenv = require('dotenv');
 const helmet = require('helmet');
 
 dotenv.config();
-
-const app = express();
 app.use(helmet());
+const app = express();
 const httpServer = http.createServer(app);
 
 const allowedOrigins = [
