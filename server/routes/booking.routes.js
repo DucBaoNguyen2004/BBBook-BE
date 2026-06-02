@@ -19,7 +19,12 @@ router.post('/', [
   body('courtId').isMongoId().withMessage('ID sân không hợp lệ.'),
   body('date').isISO8601().withMessage('Ngày không hợp lệ (định dạng YYYY-MM-DD).'),
   body('startTime').matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Giờ bắt đầu không hợp lệ (HH:mm).'),
-  body('endTime').matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Giờ kết thúc không hợp lệ (HH:mm).'),
+  body('endTime')
+    .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Giờ kết thúc không hợp lệ (HH:mm).')
+    .custom((val, { req }) => {
+      if (val <= req.body.startTime) throw new Error('Giờ kết thúc phải sau giờ bắt đầu.');
+      return true;
+    }),
   validate
 ], createBooking);
 router.get('/my', getMyBookings);
