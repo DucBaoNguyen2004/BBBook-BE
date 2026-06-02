@@ -68,7 +68,7 @@ exports.createBooking = async (req, res) => {
       startTime,
       endTime,
       slots, // Thêm slots vào đây
-      totalHours: correctedTotalHours,
+      totalHours: totalHours,
       totalPrice,
       notes,
     });
