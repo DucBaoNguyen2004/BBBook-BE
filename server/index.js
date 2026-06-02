@@ -4,10 +4,12 @@ const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const helmet = require('helmet');
 
 dotenv.config();
 
 const app = express();
+app.use(helmet());
 const httpServer = http.createServer(app);
 
 const allowedOrigins = [
