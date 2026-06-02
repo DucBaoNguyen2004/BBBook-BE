@@ -1,6 +1,27 @@
 const Booking = require('../models/Booking.model');
 const Court = require('../models/Court.model');
 
+// Helper để tạo các slot 30 phút giữa startTime và endTime
+const generateTimeSlots = (date, startTime, endTime) => {
+  const slots = [];
+  let [currentH, currentM] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+
+  const endTotal = endH * 60 + endM;
+
+  while ((currentH * 60 + currentM) < endTotal) {
+    const timeStr = `${String(currentH).padStart(2, '0')}:${String(currentM).padStart(2, '0')}`;
+    slots.push(timeStr);
+
+    currentM += 30;
+    if (currentM >= 60) {
+      currentH += 1;
+      currentM -= 60;
+    }
+  }
+  return slots;
+};
+
 // Kiểm tra slot có bị trùng không
 const isSlotAvailable = async (courtId, date, startTime, endTime, excludeId = null) => {
   const query = {
@@ -24,20 +45,14 @@ exports.createBooking = async (req, res) => {
     // Kiểm tra sân tồn tại không
     const court = await Court.findById(courtId);
     if (!court) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy sân.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy sân.'
       });
     }
 
-    // Kiểm tra slot có trùng không
-    const available = await isSlotAvailable(courtId, date, startTime, endTime);
-    if (!available) {
-      return res.status(409).json({ 
-        success: false, 
-        message: 'Slot này đã được đặt. Vui lòng chọn giờ khác.' 
-      });
-    }
+    // Tạo danh sách slots để kiểm tra trùng lặp nguyên tử (atomic)
+    const slots = generateTimeSlots(date, startTime, endTime);
 
     // Tính số giờ và tổng tiền
     const [sh, sm] = startTime.split(':').map(Number);
@@ -45,25 +60,34 @@ exports.createBooking = async (req, res) => {
     const totalHours = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
     const totalPrice = totalHours * court.pricePerHour;
 
+    // Sử dụng Booking.create, unique index trên slots sẽ chặn đứng race condition
     const booking = await Booking.create({
       user: req.user._id,
       court: courtId,
       date,
       startTime,
       endTime,
-      totalHours,
+      slots, // Thêm slots vào đây
+      totalHours: correctedTotalHours,
       totalPrice,
       notes,
     });
 
     await booking.populate(['user', 'court']);
 
-    res.status(201).json({ 
-      success: true, 
-      message: 'Đặt sân thành công!', 
-      data: booking 
+    res.status(201).json({
+      success: true,
+      message: 'Đặt sân thành công!',
+      data: booking
     });
   } catch (err) {
+    // Xử lý lỗi trùng lặp (Race condition)
+    if (err.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Slot này vừa mới có người đặt. Vui lòng chọn giờ khác.'
+      });
+    }
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -83,13 +107,13 @@ exports.getMyBookings = async (req, res) => {
 
     const total = await Booking.countDocuments(query);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: bookings,
-      pagination: { 
-        total, 
-        page: Number(page), 
-        pages: Math.ceil(total / limit) 
+      pagination: {
+        total,
+        page: Number(page),
+        pages: Math.ceil(total / limit)
       }
     });
   } catch (err) {
@@ -106,20 +130,20 @@ exports.getBookingById = async (req, res) => {
       .populate('payment');
 
     if (!booking) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy booking.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy booking.'
       });
     }
 
     // Chỉ user sở hữu hoặc admin mới xem được
     if (
-      booking.user._id.toString() !== req.user._id.toString() && 
+      booking.user._id.toString() !== req.user._id.toString() &&
       req.user.role !== 'admin'
     ) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Không có quyền truy cập.' 
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền truy cập.'
       });
     }
 
@@ -135,25 +159,25 @@ exports.cancelBooking = async (req, res) => {
     const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy booking.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy booking.'
       });
     }
 
     // Chỉ user sở hữu mới huỷ được
     if (booking.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Không có quyền.' 
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền.'
       });
     }
 
     // Chỉ huỷ được khi đang pending hoặc paid
     if (!['pending', 'paid'].includes(booking.status)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Không thể huỷ booking này.' 
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể huỷ booking này.'
       });
     }
 
@@ -161,10 +185,10 @@ exports.cancelBooking = async (req, res) => {
     booking.cancelReason = req.body.reason || 'User huỷ';
     await booking.save();
 
-    res.json({ 
-      success: true, 
-      message: 'Huỷ booking thành công!', 
-      data: booking 
+    res.json({
+      success: true,
+      message: 'Huỷ booking thành công!',
+      data: booking
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -207,4 +231,4 @@ exports.updateBookingStatus = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-};
+};
