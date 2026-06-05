@@ -7,16 +7,43 @@ const dotenv = require('dotenv');
 const helmet = require('helmet');
 
 dotenv.config();
-app.use(helmet());
+
 const app = express();
 const httpServer = http.createServer(app);
 
 const allowedOrigins = [
   'https://bb-book-fe.vercel.app',
-  process.env.CLIENT_URL || 'http://localhost:3000',
+  process.env.CLIENT_URL,
+  'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:3001'
-];
+].filter(Boolean);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+// CORS phải đứng đầu tiên
+app.use(cors(corsOptions));
+// Xử lý preflight cho tất cả routes
+app.options('*', cors(corsOptions));
+
+app.use(helmet());
+
+// Webhook Stripe cần raw body - đặt trước express.json()
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Khởi tạo Socket.io
 const io = new Server(httpServer, {
@@ -27,29 +54,10 @@ const io = new Server(httpServer, {
   },
 });
 
-// Gắn io vào app để dùng ở nơi khác nếu cần
 app.set('io', io);
 
-// Khởi động socket handler
 const { initSocket } = require('./socket/socket.handler');
 initSocket(io);
-
-// Webhook Stripe cần raw body
-app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors({ 
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true 
-}));
 
 // Routes
 const authRoutes = require('./routes/auth.routes');
@@ -73,22 +81,19 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server đang chạy!' });
 });
 
-// Kết nối MongoDB và khởi động server
 const PORT = process.env.PORT || 5000;
 
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log(' Kết nối MongoDB thành công');
-    // Dùng httpServer thay vì app.listen
+    console.log('Kết nối MongoDB thành công');
     httpServer.listen(PORT, () => {
-      console.log(` Server chạy tại http://localhost:${PORT}`);
-      console.log(`Socket.io sẵn sàng`);
-      // Khởi động cron jobs sau khi server đã chạy
+      console.log(`Server chạy tại http://localhost:${PORT}`);
+      console.log('Socket.io sẵn sàng');
       startCronJobs();
     });
   })
   .catch((err) => {
-    console.error(' Lỗi kết nối MongoDB:', err.message);
+    console.error('Lỗi kết nối MongoDB:', err.message);
     process.exit(1);
   });
