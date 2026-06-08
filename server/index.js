@@ -12,34 +12,16 @@ const app = express();
 app.use(helmet());
 const httpServer = http.createServer(app);
 
-const allowedOrigins = [
-  'https://bb-book-fe.vercel.app',
-  process.env.CLIENT_URL,
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://localhost:3001'
-].filter(Boolean);
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
-
+app.use(
+  cors({
+    origin: ["https://bb-book-fe.vercel.app/", "http://localhost:3000", "http://localhost:5173"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
 // CORS phải đứng đầu tiên
 app.use(cors(corsOptions));
-// Xử lý preflight cho tất cả routes
-// app.options('*', cors(corsOptions));
-
-app.use(helmet());
-
 // Webhook Stripe cần raw body - đặt trước express.json()
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
