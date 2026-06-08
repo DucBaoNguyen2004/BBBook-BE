@@ -35,7 +35,7 @@ const corsOptions = {
 // CORS phải đứng đầu tiên
 app.use(cors(corsOptions));
 // Xử lý preflight cho tất cả routes
-app.options('*', cors(corsOptions));
+// app.options('*', cors(corsOptions));
 
 app.use(helmet());
 
